@@ -1,38 +1,34 @@
-# -------------------
-# 1. Build React Client (Vite)
-# -------------------
-FROM node:20-alpine AS builder
+# 1. Aşama: Build
+FROM node:20 AS builder
 
 WORKDIR /app
 
-# Bağımlılıkları yükle
-COPY package.json package-lock.json ./
+# Gerekli dosyaları kopyala
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY vite.config.ts ./
 COPY client ./client
-COPY shared ./shared
-
-# Client bağımlılıkları yükle ve build et
-RUN npm install && npm run build --workspace=client
-
-# -------------------
-# 2. Run Express Server with Built Files
-# -------------------
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-# Yalnızca production için gerekli dosyaları kopyala
-COPY package.json package-lock.json ./
 COPY server ./server
 COPY shared ./shared
+COPY attached_assets ./attached_assets
 
-# Sadece server bağımlılıkları yüklensin
-RUN npm install --only=production
+RUN npm install
 
-# Client tarafında build edilmiş dosyaları dist içine kopyala
-COPY --from=builder /app/client/dist ./dist
+# Vite build işlemi
+RUN npm run build
 
-# Port Render.com'a uygun olmalı
-ENV PORT=10000
+# 2. Aşama: Servis konteyneri
+FROM node:20
 
-# Uygulamayı başlat
-CMD ["node", "server/index.js"]
+WORKDIR /app
+
+# Gerekli dosyaları al
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/attached_assets ./attached_assets
+
+# Servisi başlat
+CMD ["node", "dist/index.js"]
