@@ -348,41 +348,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const pageWidthMm = 210;
         const pageHeightMm = 297;
         
-        // String değerlerini güvenli bir şekilde sayıya dönüştürmek için yardımcı fonksiyon
-        const toNumber = (value: any): number => {
-          if (typeof value === 'number') return value;
-          if (!value && value !== 0) return 0;
-          // Türkçe lokalizasyonu için virgüllü sayıları işle (örn: "63,5" -> "63.5")
-          const normalized = value.toString().replace(',', '.');
-          return parseFloat(normalized);
-        };
-        
         // Etiket boyutları şablondan alınıyor (mm)
-        const labelWidthMm = toNumber(templateValues.labelWidth); 
-        const labelHeightMm = toNumber(templateValues.labelHeight);
+        const labelWidthMm = templateValues.labelWidth; 
+        const labelHeightMm = templateValues.labelHeight;
         
         // Sayfa kenar boşlukları şablondan alınıyor (mm)
-        const topMarginMm = toNumber(templateValues.topMargin);
-        const leftMarginMm = toNumber(templateValues.leftMargin);
-        const rightMarginMm = toNumber(templateValues.rightMargin);
-        const bottomMarginMm = toNumber(templateValues.bottomMargin);
+        const topMarginMm = templateValues.topMargin;
+        const leftMarginMm = templateValues.leftMargin;
+        const rightMarginMm = templateValues.rightMargin;
+        const bottomMarginMm = templateValues.bottomMargin;
         
         // Etiketler arası boşluklar şablondan alınıyor (mm)
-        const horizontalSpacingMm = toNumber(templateValues.horizontalSpacing);
-        const verticalSpacingMm = toNumber(templateValues.verticalSpacing);
-        
-        console.log("Şablon Değerleri (toNumber ile dönüştürülmüş):", {
-          topMargin: topMarginMm,
-          bottomMargin: bottomMarginMm,
-          leftMargin: leftMarginMm,
-          rightMargin: rightMarginMm,
-          horizontalSpacing: horizontalSpacingMm,
-          verticalSpacing: verticalSpacingMm,
-          labelWidth: labelWidthMm,
-          labelHeight: labelHeightMm,
-          columns: templateValues.columns,
-          rows: templateValues.rows
-        });
+        const horizontalSpacingMm = templateValues.horizontalSpacing;
+        const verticalSpacingMm = templateValues.verticalSpacing;
         
         // A4 Kağıdının ortası: 297 / 2 = 148.5 mm
         const pageMiddle = pageHeightMm / 2; // 148.5 mm
@@ -407,8 +385,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // sayfanın tepesinden itibaren olan mesafeyi, sayfanın yüksekliğinden çıkarırız
         // Bu şekilde, sayfanın üstünden olan mesafeyi sayfanın altından olan mesafeye çeviririz
         const y = (pageHeightMm - yPosition - labelHeightMm) * mmToPoints;
-        
-        console.log(`Etiket ${labelIndex+1}: Satır ${row+1}, Sütun ${col+1}, Konum: (${xPosition.toFixed(2)}mm, ${yPosition.toFixed(2)}mm) -> PDF Y: ${y/mmToPoints}mm`);
         
         // Embed the image
         if (label.imageData.startsWith('data:')) {
@@ -499,12 +475,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Not: PDF'de Y koordinatı aşağıdan yukarıya doğru artar (ters)
           const dateY = y + bottomInset * mmToPoints;
           
-          console.log(`Tarih konumu: X=${dateX/mmToPoints}mm, Y=${dateY/mmToPoints}mm (etiket genişliği: ${labelWidthMm}mm)`);
-          
           // Tarih yazı boyutu
           const fontSize = 11;
           
           // Draw the date
+          page.drawText(formattedDate, {
+            x: dateX,
+            y: dateY,
+            size: fontSize,
+            font,
+            color: rgb(0.3, 0.3, 0.3),
+          });
+        } else if (addDate && date) {
+          // Eğer label.date yoksa ama genel addDate true ise, genel date kullanılır
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const formattedDate = new Date(date).toLocaleDateString('tr-TR');
+          
+          const rightInset = 30; // mm
+          const bottomInset = 15; // mm
+          
+          const dateX = x + (labelWidthMm - rightInset) * mmToPoints;
+          const dateY = y + bottomInset * mmToPoints;
+          const fontSize = 11;
+          
           page.drawText(formattedDate, {
             x: dateX,
             y: dateY,
@@ -518,6 +511,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     return pdfDoc;
   }
+
+  // Yardımcı toNumber fonksiyonunu dışarıda tanımladım (eğer '@/lib/utils' içinde varsa bunu kullanabilirsin)
+  // Aksi takdirde aşağıdaki toNumber fonksiyonunu kullan:
+  /*
+  function toNumber(value: any): number {
+    if (typeof value === 'number') return value;
+    if (!value && value !== 0) return 0;
+    // Türkçe lokalizasyonu için virgüllü sayıları işle (örn: "63,5" -> "63.5")
+    const normalized = value.toString().replace(',', '.');
+    return parseFloat(normalized);
+  }
+  */
 
   const httpServer = createServer(app);
   return httpServer;
