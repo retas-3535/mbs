@@ -10,7 +10,6 @@ COPY vite.config.ts ./
 COPY client ./client
 COPY server ./server
 COPY shared ./shared
-COPY attached_assets ./attached_assets
 
 RUN npm install
 
