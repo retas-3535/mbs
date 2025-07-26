@@ -1,28 +1,38 @@
-# 1. Build aşaması
-FROM node:20 AS builder
+# -------------------
+# 1. Build React Client (Vite)
+# -------------------
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# package.json ve diğer dosyaları kopyala
-COPY . .
+# Bağımlılıkları yükle
+COPY package.json package-lock.json ./
+COPY client ./client
+COPY shared ./shared
 
-# Bağımlılıkları yükle ve uygulamayı derle
-RUN npm install
-RUN npm run build
+# Client bağımlılıkları yükle ve build et
+RUN npm install && npm run build --workspace=client
 
-# 2. Production aşaması
-FROM node:20
+# -------------------
+# 2. Run Express Server with Built Files
+# -------------------
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Serve modülünü yükle (basit statik sunucu)
-RUN npm install -g serve
+# Yalnızca production için gerekli dosyaları kopyala
+COPY package.json package-lock.json ./
+COPY server ./server
+COPY shared ./shared
 
-# build klasörünü kopyala (örneğin: client/dist veya dist/client olabilir)
+# Sadece server bağımlılıkları yüklensin
+RUN npm install --only=production
+
+# Client tarafında build edilmiş dosyaları dist içine kopyala
 COPY --from=builder /app/client/dist ./dist
 
-# Render özelinde port 8080 sabittir
-ENV PORT 8080
+# Port Render.com'a uygun olmalı
+ENV PORT=10000
 
 # Uygulamayı başlat
-CMD ["serve", "-s", "dist", "-l", "0.0.0.0:8080"]
+CMD ["node", "server/index.js"]
