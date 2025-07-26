@@ -3,11 +3,12 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-COPY client/package*.json ./client/
+# Tüm proje içeriğini kopyala
+COPY . .
+
+# client dizinine geç ve bağımlılıkları kur
 WORKDIR /app/client
 RUN npm install
-
-COPY client ./
 RUN npm run build
 
 # 2. Production aşaması
@@ -15,14 +16,14 @@ FROM node:20
 
 WORKDIR /app
 
-# Serve modülünü kur
+# Serve modülünü yükle
 RUN npm install -g serve
 
-# build dizinini kopyala
+# build çıktısını kopyala
 COPY --from=builder /app/client/dist ./dist
 
-# ENV'den gelen portu dinle
+# Render otomatik PORT verir
 ENV PORT 8080
 
-# Render tarafından verilen portta dinleme yap
+# Sunucuyu başlat
 CMD ["serve", "-s", "dist", "-l", "0.0.0.0:${PORT}"]
