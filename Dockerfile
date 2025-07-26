@@ -1,26 +1,28 @@
-# 1. Node imajını kullan
-FROM node:20-alpine
+# 1. Node image (build için)
+FROM node:20 AS builder
 
-# 2. Çalışma dizinini ayarla
+# Çalışma dizini
 WORKDIR /app
 
-# 3. Bağımlılık dosyalarını kopyala
-COPY client/package.json client/package-lock.json ./client/
-
-# 4. Bağımlılıkları yükle
+# Paket dosyalarını kopyala
+COPY client/package*.json ./client/
 WORKDIR /app/client
 RUN npm install
 
-# 5. Kaynak kodları kopyala
-WORKDIR /app
-COPY . .
-
-# 6. Uygulamayı derle
-WORKDIR /app/client
+# Projeyi derle
+COPY client ./
 RUN npm run build
 
-# 7. Geliştirme sunucusunu başlat (opsiyonel olarak servis edilecekse)
-EXPOSE 4173
+# 2. Production image (sadece static dosyaları sunar)
+FROM node:20
 
-# 8. Vite preview sunucusunu çalıştır
-CMD ["npm", "run", "preview"]
+WORKDIR /app
+
+# Serve modülünü kur (vite preview yerine)
+RUN npm install -g serve
+
+# build dizinini kopyala
+COPY --from=builder /app/client/dist ./dist
+
+# Uygulamayı başlat
+CMD ["serve", "-s", "dist", "-l", "4173"]
