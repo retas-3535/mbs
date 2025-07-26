@@ -1,28 +1,28 @@
-# 1. Node image (build için)
+# 1. Build aşaması
 FROM node:20 AS builder
 
-# Çalışma dizini
 WORKDIR /app
 
-# Paket dosyalarını kopyala
 COPY client/package*.json ./client/
 WORKDIR /app/client
 RUN npm install
 
-# Projeyi derle
 COPY client ./
 RUN npm run build
 
-# 2. Production image (sadece static dosyaları sunar)
+# 2. Production aşaması
 FROM node:20
 
 WORKDIR /app
 
-# Serve modülünü kur (vite preview yerine)
+# Serve modülünü kur
 RUN npm install -g serve
 
 # build dizinini kopyala
 COPY --from=builder /app/client/dist ./dist
 
-# Uygulamayı başlat
-CMD ["serve", "-s", "dist", "-l", "4173"]
+# ENV'den gelen portu dinle
+ENV PORT 8080
+
+# Render tarafından verilen portta dinleme yap
+CMD ["serve", "-s", "dist", "-l", "0.0.0.0:${PORT}"]
