@@ -27,7 +27,6 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
-COPY --from=builder /app/attached_assets ./attached_assets
 
 # Servisi başlat
 CMD ["node", "dist/index.js"]
