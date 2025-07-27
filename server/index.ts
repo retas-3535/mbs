@@ -44,6 +44,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint - Render.com için önemli
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV 
+  });
+});
+
 // API rotalarını kaydet
 await registerRoutes(app);
 
@@ -63,8 +73,24 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // Uygulama portu (Render.com için PORT env değişkeni gerekir)
-const PORT = parseInt(process.env.PORT || "5000", 10);
+const PORT = parseInt(process.env.PORT || "3000", 10);
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   log(`🚀 Server listening on http://localhost:${PORT}`);
+  log(`📱 Environment: ${process.env.NODE_ENV}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    log('Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    log('Process terminated');
+  });
 });
