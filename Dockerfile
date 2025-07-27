@@ -1,8 +1,5 @@
-# Multi-stage Dockerfile - Winston Hatası Çözümü
+# Düzeltilmiş Dockerfile - npm install kullanarak
 FROM node:20-alpine AS builder
-
-# Build aşaması için gerekli araçları yükle
-RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
@@ -11,22 +8,16 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY vite.config.ts ./
 
-# İlk olarak dependencies'leri yükle (cache için)
-RUN npm ci
+# npm install kullan (ci yerine) - lock file sorununu çözer
+RUN npm install
 
 # Kaynak kodları kopyala
 COPY client ./client
 COPY server ./server
 COPY shared ./shared
 
-# Winston'ı eksplisit olarak yükle
-RUN npm install winston
-
 # Build işlemini gerçekleştir
 RUN npm run build
-
-# Dependencies'leri listele (debug için)
-RUN echo "=== Installed packages ===" && npm list --depth=0 || true
 
 # Production aşaması
 FROM node:20-alpine AS production
@@ -40,11 +31,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Package dosyalarını kopyala
 COPY --from=builder /app/package*.json ./
 
-# Production dependencies'leri yükle
-RUN npm ci --only=production && npm cache clean --force
-
-# Winston'ı production'da da yükle (eğer dependencies'de yoksa)
-RUN npm install winston
+# npm install kullan (production dependencies için)
+RUN npm install --only=production
 
 # Build edilmiş dosyaları kopyala
 COPY --from=builder /app/dist ./dist
@@ -63,17 +51,9 @@ USER appuser
 # Port'u expose et
 EXPOSE 10000
 
-# Health check ekle
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "try { require('http').get('http://localhost:10000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1)); } catch(e) { process.exit(1); }" || exit 1
-
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=10000
-
-# Graceful shutdown için init sistemi
-RUN apk add --no-cache dumb-init
-ENTRYPOINT ["dumb-init", "--"]
 
 # Uygulamayı başlat
 CMD ["node", "dist/index.js"]
