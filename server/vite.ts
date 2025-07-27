@@ -68,29 +68,62 @@ export function serveStatic(app: Express, serverDirname?: string) {
 
   // SPA routing için catch-all route
   app.get("*", (req, res) => {
-    let indexPath: string;
+    // Birden fazla olası lokasyonu kontrol et
+    const possiblePaths = [
+      path.join(distPath, "index.html"),
+      path.join(publicPath, "index.html"),
+      path.resolve(process.cwd(), "dist", "index.html"),
+      path.resolve(process.cwd(), "public", "index.html"),
+      path.resolve(process.cwd(), "client", "dist", "index.html"),
+      path.resolve(process.cwd(), "client", "public", "index.html"),
+      path.resolve(process.cwd(), "src", "index.html"),
+      "/app/client/dist/index.html",
+      "/app/client/public/index.html",
+      "/app/public/index.html"
+    ];
     
-    if (fs.existsSync(distPath)) {
-      indexPath = path.join(distPath, "index.html");
-    } else if (fs.existsSync(publicPath)) {
-      indexPath = path.join(publicPath, "index.html");
-    } else {
-      // Fallback
-      const fallbackDistPath = path.resolve(process.cwd(), "dist");
-      const fallbackPublicPath = path.resolve(process.cwd(), "public");
-      
-      if (fs.existsSync(fallbackDistPath)) {
-        indexPath = path.join(fallbackDistPath, "index.html");
-      } else {
-        indexPath = path.join(fallbackPublicPath, "index.html");
+    let indexPath: string | null = null;
+    
+    for (const possiblePath of possiblePaths) {
+      if (fs.existsSync(possiblePath)) {
+        indexPath = possiblePath;
+        break;
       }
     }
     
-    if (fs.existsSync(indexPath)) {
+    if (indexPath && fs.existsSync(indexPath)) {
+      log(`Serving index.html from: ${indexPath}`);
       res.sendFile(indexPath);
     } else {
-      res.status(404).send("404 - Page Not Found");
-      log(`404: Could not find index.html at ${indexPath}`, "error");
+      // Eğer index.html bulunamazsa, basit bir HTML döndür
+      const fallbackHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App</title>
+</head>
+<body>
+    <div id="root">Loading...</div>
+    <script>
+        // API health check
+        fetch('/api/health')
+          .then(r => r.json())
+          .then(data => {
+            document.getElementById('root').innerHTML = 
+              '<h1>Server is running!</h1><p>Status: ' + data.status + '</p><p>Message: ' + data.message + '</p>';
+          })
+          .catch(err => {
+            document.getElementById('root').innerHTML = 
+              '<h1>Server is running but no frontend found</h1><p>Error: ' + err.message + '</p>';
+          });
+    </script>
+</body>
+</html>`;
+      
+      res.send(fallbackHtml);
+      log(`Could not find index.html in any of these paths: ${possiblePaths.join(', ')}`, "error");
     }
   });
 }
