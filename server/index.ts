@@ -1,7 +1,13 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { createServer as createHttpServer } from "http";
+import { fileURLToPath } from "url";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// ES modül için __dirname ve __filename tanımla
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createHttpServer(app);
@@ -14,15 +20,14 @@ app.use(express.urlencoded({ extended: false, limit: "50mb" }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-
   let capturedJsonResponse: any;
+  
   const originalJson = res.json;
-
   res.json = function (body, ...args) {
     capturedJsonResponse = body;
     return originalJson.apply(this, [body, ...args]);
   };
-
+  
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
@@ -30,15 +35,12 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         message += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (message.length > 120) {
         message = message.slice(0, 117) + "...";
       }
-
       log(message);
     }
   });
-
   next();
 });
 
@@ -57,11 +59,12 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 if (process.env.NODE_ENV === "development") {
   await setupVite(app, server);
 } else {
-  serveStatic(app);
+  serveStatic(app, __dirname);
 }
 
 // Uygulama portu (Render.com için PORT env değişkeni gerekir)
 const PORT = parseInt(process.env.PORT || "5000", 10);
+
 server.listen(PORT, () => {
   log(`🚀 Server listening on http://localhost:${PORT}`);
 });
