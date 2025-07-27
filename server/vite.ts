@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer as createViteServer } from "vite";
 import { fileURLToPath } from "url";
 import path from "path";
